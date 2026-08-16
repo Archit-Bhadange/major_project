@@ -1,0 +1,17 @@
+{
+  "random_forest": {
+    "accuracy": 94.91,
+    "precision": 77.26,
+    "recall": 93.71,
+    "f1_score": 84.69,
+    "roc_auc": 98.92
+  },
+  "xgboost": {
+    "accuracy": 95.3,
+    "precision": 80.69,
+    "recall": 90.32,
+    "f1_score": 85.24,
+    "roc_auc": 98.98
+  },
+  "best_model": "XGBoost"
+}
