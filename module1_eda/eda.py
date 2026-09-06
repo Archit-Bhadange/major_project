@@ -1,12 +1,5 @@
 """
-MODULE 1 — EXPLORATORY DATA ANALYSIS (EDA)
-===========================================
-Owner : Member 1
-Dataset: NASA C-MAPSS FD001
-Purpose: Understand the dataset, visualise sensor patterns,
-         calculate RUL, and identify useful sensors.
-
-Run this file from the project root:
+EXPLORATORY DATA ANALYSIS 
     python module1_eda/eda.py
 """
 
@@ -16,9 +9,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-# ─────────────────────────────────────────
-# STEP 1 — DEFINE COLUMN NAMES
-# ─────────────────────────────────────────
+
+#  DEFINE COLUMN NAMES
 # NASA dataset has no headers — we add them manually
 COLUMNS = [
     'engine_id', 'cycle',
@@ -29,9 +21,8 @@ COLUMNS = [
     's16', 's17', 's18', 's19', 's20', 's21'
 ]
 
-# ─────────────────────────────────────────
-# STEP 2 — LOAD DATASET
-# ─────────────────────────────────────────
+
+# LOAD DATASET
 print("=" * 60)
 print("MODULE 1 — EXPLORATORY DATA ANALYSIS")
 print("=" * 60)
@@ -63,9 +54,7 @@ rul_df = pd.read_csv(
 
 print("\n✅ Dataset loaded successfully!")
 
-# ─────────────────────────────────────────
-# STEP 3 — BASIC INFORMATION
-# ─────────────────────────────────────────
+#  BASIC INFORMATION
 print("\n" + "─" * 60)
 print("BASIC INFORMATION")
 print("─" * 60)
@@ -75,17 +64,16 @@ print(f"Test rows        : {test_df.shape[0]}")
 print(f"Number of engines in training : {train_df['engine_id'].nunique()}")
 print(f"Number of engines in test     : {test_df['engine_id'].nunique()}")
 
-# ─────────────────────────────────────────
-# STEP 4 — FIRST LOOK AT DATA
-# ─────────────────────────────────────────
+
+# LOOK AT DATA
+
 print("\n" + "─" * 60)
 print("FIRST 5 ROWS OF TRAINING DATA")
 print("─" * 60)
 print(train_df.head())
 
-# ─────────────────────────────────────────
-# STEP 5 — CHECK FOR MISSING VALUES
-# ─────────────────────────────────────────
+# CHECK FOR MISSING VALUES
+
 print("\n" + "─" * 60)
 print("MISSING VALUES CHECK")
 print("─" * 60)
@@ -94,9 +82,9 @@ print(f"Total missing values: {missing}")
 if missing == 0:
     print("✅ No missing values — dataset is clean!")
 
-# ─────────────────────────────────────────
-# STEP 6 — ENGINE LIFE STATISTICS
-# ─────────────────────────────────────────
+
+# ENGINE LIFE STATISTICS
+
 print("\n" + "─" * 60)
 print("ENGINE LIFE STATISTICS")
 print("─" * 60)
@@ -107,9 +95,9 @@ print(f"Shortest engine life : {engine_life.min()} cycles")
 print(f"Longest engine life  : {engine_life.max()} cycles")
 print(f"Average engine life  : {engine_life.mean():.1f} cycles")
 
-# ─────────────────────────────────────────
-# STEP 7 — CALCULATE RUL
-# ─────────────────────────────────────────
+
+# CALCULATE RUL
+
 print("\n" + "─" * 60)
 print("CALCULATING RUL")
 print("─" * 60)
@@ -132,9 +120,9 @@ print("✅ RUL column added successfully!")
 print(f"\nSample RUL values for Engine 1:")
 print(train_df[train_df['engine_id'] == 1][['engine_id', 'cycle', 'RUL']].head(10))
 
-# ─────────────────────────────────────────
-# STEP 8 — IDENTIFY CONSTANT SENSORS
-# ─────────────────────────────────────────
+
+# IDENTIFY CONSTANT SENSORS
+
 print("\n" + "─" * 60)
 print("IDENTIFYING CONSTANT SENSORS")
 print("─" * 60)
@@ -154,9 +142,7 @@ for sensor in sensor_cols:
 print(f"\n✅ Useful sensors  : {len(useful_sensors)} → {useful_sensors}")
 print(f"❌ Constant sensors: {len(constant_sensors)} → {constant_sensors}")
 
-# ─────────────────────────────────────────
-# STEP 9 — SAVE OUTPUTS
-# ─────────────────────────────────────────
+# SAVE OUTPUTS
 os.makedirs('outputs', exist_ok=True)
 
 # Save processed training data with RUL
@@ -169,9 +155,8 @@ with open('outputs/useful_sensors.json', 'w') as f:
     json.dump(useful_sensors, f)
 print("✅ Saved: outputs/useful_sensors.json")
 
-# ─────────────────────────────────────────
-# STEP 10 — VISUALISATIONS
-# ─────────────────────────────────────────
+
+#  VISUALISATIONS
 print("\n" + "─" * 60)
 print("GENERATING VISUALISATIONS")
 print("─" * 60)
@@ -272,18 +257,16 @@ plt.savefig('outputs/plot5_healthy_vs_degrading.png', dpi=150)
 plt.close()
 print("✅ Saved: plot5_healthy_vs_degrading.png")
 
-# ─────────────────────────────────────────
+
 # FINAL SUMMARY
-# ─────────────────────────────────────────
 print("\n" + "=" * 60)
 print("MODULE 1 COMPLETE — SUMMARY")
 print("=" * 60)
-print(f"✅ Dataset loaded           : {train_df.shape[0]} rows, {train_df.shape[1]} columns")
-print(f"✅ Missing values           : None")
-print(f"✅ RUL calculated           : Added as new column")
-print(f"✅ Useful sensors identified: {len(useful_sensors)} sensors")
-print(f"✅ Constant sensors dropped : {len(constant_sensors)} sensors")
-print(f"✅ Plots generated          : 5 plots saved in outputs/")
-print(f"✅ Files saved              : train_with_RUL.csv, useful_sensors.json")
-print("\n👉 Next Step: Run Module 2 — Preprocessing")
+print(f"Dataset loaded           : {train_df.shape[0]} rows, {train_df.shape[1]} columns")
+print(f"Missing values           : None")
+print(f"RUL calculated           : Added as new column")
+print(f"Useful sensors identified: {len(useful_sensors)} sensors")
+print(f"Constant sensors dropped : {len(constant_sensors)} sensors")
+print(f"Plots generated          : 5 plots saved in outputs/")
+print(f"Files saved              : train_with_RUL.csv, useful_sensors.json")
 print("=" * 60)

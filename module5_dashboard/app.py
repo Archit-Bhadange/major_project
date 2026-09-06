@@ -1,7 +1,7 @@
 """
 MODULE 5 — STREAMLIT DASHBOARD
 ================================
-Run from project root:
+Run:
     streamlit run module5_dashboard/app.py
 """
 
@@ -18,10 +18,9 @@ import plotly.graph_objects as go
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# Suppress warnings in terminal
 warnings.filterwarnings('ignore')
 
-# ── 1. Page Configuration ──
+# Page Configuration
 st.set_page_config(
     page_title="Predictive Maintenance Dashboard",
     page_icon="⚙️",
@@ -31,10 +30,10 @@ st.set_page_config(
 st.title("⚙️ Predictive Maintenance — Real-Time Turbofan Monitoring")
 st.markdown("Real-time telemetry monitoring, remaining useful life (RUL) estimation, and failure probability tracking.")
 
-# ── 2. Email Configuration (SMTP) ──
-SENDER_EMAIL = "your_email@gmail.com"        # Replace with valid Gmail
-SENDER_PASSWORD = "your_app_password"         # Replace with 16-digit App Password
-RECEIVER_EMAIL = "receiver_email@gmail.com"   # Replace with recipient email
+# Email Credentials
+SENDER_EMAIL = "9552277239archit@gmail.com"        
+SENDER_PASSWORD = "rafp dryi amgb iyrn"         
+RECEIVER_EMAIL = "archit.bhadange@gmail.com"   
 
 def send_alert_email(engine_id, cycle, risk_percentage, rul_estimate):
     """Sends an automated email notification when risk crosses the threshold."""
@@ -73,7 +72,7 @@ def send_alert_email(engine_id, cycle, risk_percentage, rul_estimate):
         st.sidebar.error(f"Email failure: {e}")
         return False
 
-# ── 3. Load Artifacts ──
+# Load Models and Scalers
 @st.cache_resource
 def load_models_and_scaler():
     rf_model = joblib.load('models/random_forest.pkl')
@@ -81,7 +80,7 @@ def load_models_and_scaler():
     scaler = joblib.load('models/scaler.pkl')
     
     lstm_model = None
-    lstm_path = 'models/lstm_model.h5'
+    lstm_path = 'models/lstm_best.h5' if os.path.exists('models/lstm_best.h5') else 'models/lstm_model.h5'
     if os.path.exists(lstm_path):
         try:
             import tensorflow as tf
@@ -101,7 +100,7 @@ except Exception as e:
     st.error(f"❌ Error loading model artifacts: {e}")
     st.stop()
 
-# ── 4. Sidebar Controls ──
+# Sidebar Controls
 st.sidebar.header("🕹️ Simulation Controls")
 uploaded_file = st.sidebar.file_uploader("Upload Test Data (test_FD001.txt)", type=["txt", "csv"])
 
@@ -129,7 +128,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── 5. Main Simulation Logic ──
+# Main Dashboard Logic
 if uploaded_file is not None:
     col_names = ['unit_number', 'time_cycles', 'setting_1', 'setting_2', 'setting_3'] + [f's{i}' for i in range(1, 22)]
     df = pd.read_csv(uploaded_file, sep=r'\s+', header=None, names=col_names)
@@ -232,8 +231,14 @@ if uploaded_file is not None:
 
         st.success(f"✅ Simulation completed for Engine {selected_engine}")
 
-    # ── 6. SHAP Explainability (Only Renders If File Exists) ──
-    if os.path.exists('outputs/shap_summary.png'):
+    # ── 6. SHAP Explainability (Dynamic Filename Resolution) ──
+    shap_path = None
+    for candidate in ['outputs/plot_shap_rf.png', 'outputs/plot_shap_xgb.png', 'outputs/shap_summary.png']:
+        if os.path.exists(candidate):
+            shap_path = candidate
+            break
+
+    if shap_path:
         st.divider()
         with st.expander("🔍 Model Explainability & Feature Importance (SHAP Analysis)"):
             st.markdown("""
@@ -241,6 +246,9 @@ if uploaded_file is not None:
             SHAP (SHapley Additive exPlanations) highlights how individual engine sensor readings influence model predictions. 
             Higher values in core sensors (e.g., temperatures and pressures) directly increase the predicted failure probability.
             """)
-            st.image('outputs/shap_summary.png', caption="SHAP Summary Plot — Feature Impact on Failure Risk", use_container_width=True)
+            try:
+                st.image(shap_path, caption="SHAP Summary Plot — Feature Impact on Failure Risk", use_container_width=True)
+            except TypeError:
+                st.image(shap_path, caption="SHAP Summary Plot — Feature Impact on Failure Risk", use_column_width=True)
 else:
     st.info("👈 Please upload `test_FD001.txt` in the sidebar to begin testing.")

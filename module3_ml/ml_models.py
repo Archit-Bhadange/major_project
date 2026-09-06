@@ -140,19 +140,37 @@ plt.close()
 
 # SHAP Analysis
 try:
+    # 1. Use TreeExplainer
     explainer_rf = shap.TreeExplainer(rf_model)
     shap_vals_rf = explainer_rf.shap_values(X_test[:200])
-    shap_plot_rf = shap_vals_rf[1] if isinstance(shap_vals_rf, list) else shap_vals_rf
-    plt.figure(figsize=(10, 8))
-    shap.summary_plot(shap_plot_rf, X_test[:200], feature_names=feature_cols, show=False)
-    plt.title('SHAP Feature Importance — Random Forest')
+    
+    # 2. Extract values for Class 1 (Failure Class)
+    if isinstance(shap_vals_rf, list):
+        shap_plot_vals = shap_vals_rf[1]
+    elif len(shap_vals_rf.shape) == 3:
+        shap_plot_vals = shap_vals_rf[:, :, 1]
+    else:
+        shap_plot_vals = shap_vals_rf
+
+    # 3. Clear existing figures & set proper layout
+    plt.clf()
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # 4. Generate standard SHAP summary dot plot
+    shap.summary_plot(
+        shap_plot_vals, 
+        X_test[:200], 
+        feature_names=feature_cols, 
+        show=False
+    )
+    
+    plt.title('SHAP Feature Importance — Random Forest', fontsize=12, pad=15)
     plt.tight_layout()
     plt.savefig('outputs/plot_shap_rf.png', dpi=150, bbox_inches='tight')
-    plt.close()
-    print("✅ SHAP plots saved!")
+    plt.close('all')
+    print("✅ Fixed SHAP summary plot saved to outputs/plot_shap_rf.png")
+
 except Exception as e:
-    print(f"⚠️ SHAP generation skipped: {e}")
+    print(f"❌ SHAP generation error: {e}")
 
 print("\n" + "=" * 60)
-print("MODULE 3 COMPLETE")
-print("=" * 60)
