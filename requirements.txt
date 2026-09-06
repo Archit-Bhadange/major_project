@@ -1,6 +1,6 @@
 streamlit
 pandas
-numpy<2.0.0
+numpy
 scikit-learn
 xgboost
 tensorflow-cpu
