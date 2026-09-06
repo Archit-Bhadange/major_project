@@ -30,10 +30,10 @@ st.set_page_config(
 st.title("⚙️ Predictive Maintenance — Real-Time Turbofan Monitoring")
 st.markdown("Real-time telemetry monitoring, remaining useful life (RUL) estimation, and failure probability tracking.")
 
-# Email Credentials
-SENDER_EMAIL = "9552277239archit@gmail.com"        
-SENDER_PASSWORD = "rafp dryi amgb iyrn"         
-RECEIVER_EMAIL = "archit.bhadange@gmail.com"   
+# Email Credentials (Secure Loading from Streamlit Secrets with Fallbacks)
+SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "9552277239archit@gmail.com")
+SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "rafp dryi amgb iyrn")
+RECEIVER_EMAIL = st.secrets.get("RECEIVER_EMAIL", "archit.bhadange@gmail.com")
 
 def send_alert_email(engine_id, cycle, risk_percentage, rul_estimate):
     """Sends an automated email notification when risk crosses the threshold."""
@@ -231,7 +231,7 @@ if uploaded_file is not None:
 
         st.success(f"✅ Simulation completed for Engine {selected_engine}")
 
-    # ── 6. SHAP Explainability (Dynamic Filename Resolution) ──
+    # ── 6. SHAP Explainability (Dynamic Resolution & Compatible Image Rendering) ──
     shap_path = None
     for candidate in ['outputs/plot_shap_rf.png', 'outputs/plot_shap_xgb.png', 'outputs/shap_summary.png']:
         if os.path.exists(candidate):
