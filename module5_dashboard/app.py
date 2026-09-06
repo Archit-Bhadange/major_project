@@ -81,10 +81,23 @@ def load_models_and_scaler():
     
     lstm_model = None
     lstm_path = 'models/lstm_best.h5' if os.path.exists('models/lstm_best.h5') else 'models/lstm_model.h5'
+    
     if os.path.exists(lstm_path):
         try:
             import tensorflow as tf
-            lstm_model = tf.keras.models.load_model(lstm_path, compile=False)
+            from tensorflow.keras.layers import LSTM as KerasLSTM
+
+            # Custom wrapper to strip out 'time_major' and unneeded kwargs
+            class FixedLSTM(KerasLSTM):
+                def __init__(self, *args, **kwargs):
+                    kwargs.pop('time_major', None)
+                    super().__init__(*args, **kwargs)
+
+            lstm_model = tf.keras.models.load_model(
+                lstm_path, 
+                compile=False, 
+                custom_objects={'LSTM': FixedLSTM}
+            )
         except Exception as e:
             st.sidebar.warning(f"⚠️ LSTM Model found but failed to load: {e}")
 
