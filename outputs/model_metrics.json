@@ -1,0 +1,18 @@
+[
+    {
+        "Model":"Random Forest",
+        "Accuracy":0.9512963412,
+        "Precision":0.7789613848,
+        "Recall":0.9435483871,
+        "F1-Score":0.8533916849,
+        "ROC-AUC Score":0.9895526919
+    },
+    {
+        "Model":"XGBoost",
+        "Accuracy":0.9544463291,
+        "Precision":0.8112391931,
+        "Recall":0.9080645161,
+        "F1-Score":0.8569254186,
+        "ROC-AUC Score":0.990127119
+    }
+]

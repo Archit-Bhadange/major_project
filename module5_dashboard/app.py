@@ -244,14 +244,11 @@ if uploaded_file is not None:
 
         st.success(f"✅ Simulation completed for Engine {selected_engine}")
 
-    # ── 6. SHAP Explainability (Dynamic Resolution & Compatible Image Rendering) ──
-    shap_path = None
-    for candidate in ['outputs/plot_shap_rf.png', 'outputs/plot_shap_xgb.png', 'outputs/shap_summary.png']:
-        if os.path.exists(candidate):
-            shap_path = candidate
-            break
+    # ── 6. SHAP Explainability (Dual RF & XGBoost Summary Plots) ──
+    rf_shap_path = 'outputs/plot_shap_rf.png' if os.path.exists('outputs/plot_shap_rf.png') else None
+    xgb_shap_path = 'outputs/plot_shap_xgb.png' if os.path.exists('outputs/plot_shap_xgb.png') else None
 
-    if shap_path:
+    if rf_shap_path or xgb_shap_path:
         st.divider()
         with st.expander("🔍 Model Explainability & Feature Importance (SHAP Analysis)"):
             st.markdown("""
@@ -259,9 +256,27 @@ if uploaded_file is not None:
             SHAP (SHapley Additive exPlanations) highlights how individual engine sensor readings influence model predictions. 
             Higher values in core sensors (e.g., temperatures and pressures) directly increase the predicted failure probability.
             """)
-            try:
-                st.image(shap_path, caption="SHAP Summary Plot — Feature Impact on Failure Risk", use_container_width=True)
-            except TypeError:
-                st.image(shap_path, caption="SHAP Summary Plot — Feature Impact on Failure Risk", use_column_width=True)
+            
+            col_rf, col_xgb = st.columns(2)
+            
+            with col_rf:
+                st.markdown("#### Random Forest — Feature Importance")
+                if rf_shap_path:
+                    try:
+                        st.image(rf_shap_path, caption="SHAP Summary Plot — Random Forest", use_container_width=True)
+                    except TypeError:
+                        st.image(rf_shap_path, caption="SHAP Summary Plot — Random Forest", use_column_width=True)
+                else:
+                    st.warning("⚠️ Random Forest SHAP plot (`outputs/plot_shap_rf.png`) not found.")
+
+            with col_xgb:
+                st.markdown("#### XGBoost — Feature Importance")
+                if xgb_shap_path:
+                    try:
+                        st.image(xgb_shap_path, caption="SHAP Summary Plot — XGBoost", use_container_width=True)
+                    except TypeError:
+                        st.image(xgb_shap_path, caption="SHAP Summary Plot — XGBoost", use_column_width=True)
+                else:
+                    st.warning("⚠️ XGBoost SHAP plot (`outputs/plot_shap_xgb.png`) not found.")
 else:
     st.info("👈 Please upload `test_FD001.txt` in the sidebar to begin testing.")

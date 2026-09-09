@@ -1,176 +1,178 @@
 """
-MODULE 3 — MACHINE LEARNING MODELS
-====================================
-Owner : Member 3
-Input : outputs/ folder (from Module 2)
-Output: models/random_forest.pkl
-        models/xgboost_model.pkl
-        outputs/ml_results.json
+MODULE 3 — MACHINE LEARNING CLASSIFICATION, SCALER, METRICS & EXPLAINABILITY
+=============================================================================
+Train models, fit scaler on feature columns, print comprehensive metrics 
+(Accuracy, Precision, Recall, F1-Score, ROC-AUC), and generate synchronized artifacts.
 """
 
 import os
 import json
-import joblib
 import warnings
+import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score,
-    f1_score, roc_auc_score, confusion_matrix
-)
 from xgboost import XGBClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score, 
+    recall_score, 
+    f1_score, 
+    roc_auc_score,
+    confusion_matrix
+)
+from imblearn.over_sampling import SMOTE
 import shap
 
 warnings.filterwarnings('ignore')
 
-print("=" * 60)
-print("MODULE 3 — MACHINE LEARNING MODELS")
-print("=" * 60)
+os.makedirs('models', exist_ok=True)
+os.makedirs('outputs', exist_ok=True)
 
-# 1. Load Preprocessed Data
-print("\n[1/6] Loading preprocessed data from Module 2...")
-X_train = np.load('outputs/X_train.npy')
-X_test  = np.load('outputs/X_test.npy')
-y_train = np.load('outputs/y_train_class.npy')
-y_test  = np.load('outputs/y_test_class.npy')
-
+# 1. Load Feature Columns
+print("📦 Loading feature column configuration...")
 with open('outputs/feature_cols.json', 'r') as f:
     feature_cols = json.load(f)
 
-print(f"✅ X_train shape : {X_train.shape}")
-print(f"✅ X_test shape  : {X_test.shape}")
-print(f"✅ Features      : {len(feature_cols)}")
+# 2. Load Processed Dataset
+print("📄 Loading outputs/train_with_RUL.csv...")
+if not os.path.exists('outputs/train_with_RUL.csv'):
+    raise FileNotFoundError("❌ outputs/train_with_RUL.csv not found. Execute Module 2 first.")
 
-# 2. Train Random Forest
-print("\n[2/6] Training Random Forest Classifier...")
-rf_model = RandomForestClassifier(
-    n_estimators=100,
-    max_depth=10,
-    random_state=42,
-    n_jobs=-1
-)
-rf_model.fit(X_train, y_train)
-rf_pred = rf_model.predict(X_test)
-rf_prob = rf_model.predict_proba(X_test)[:, 1]
-print("✅ Random Forest trained successfully!")
+df = pd.read_csv('outputs/train_with_RUL.csv')
 
-# 3. Train XGBoost
-print("\n[3/6] Training XGBoost Classifier...")
-xgb_model = XGBClassifier(
-    n_estimators=100,
-    max_depth=6,
-    learning_rate=0.1,
-    random_state=42,
-    eval_metric='logloss',
-    verbosity=0
-)
-xgb_model.fit(X_train, y_train)
-xgb_pred = xgb_model.predict(X_test)
-xgb_prob = xgb_model.predict_proba(X_test)[:, 1]
-print("✅ XGBoost trained successfully!")
+if 'label_binary' in df.columns:
+    y = df['label_binary'].values
+elif 'RUL' in df.columns:
+    y = (df['RUL'] <= 30).astype(int).values
+else:
+    raise KeyError("❌ Target label ('label_binary' or 'RUL') not found in dataset.")
 
-# 4. Evaluate Models
-print("\n[4/6] Evaluating metrics...")
-def evaluate_model(name, y_true, y_pred, y_prob):
-    acc  = accuracy_score(y_true, y_pred)
-    prec = precision_score(y_true, y_pred)
-    rec  = recall_score(y_true, y_pred)
-    f1   = f1_score(y_true, y_pred)
-    auc  = roc_auc_score(y_true, y_prob)
+X = df[feature_cols]
 
-    print(f"\n  {name} Results:")
-    print(f"  Accuracy  : {acc*100:.2f}%")
-    print(f"  Precision : {prec*100:.2f}%")
-    print(f"  Recall    : {rec*100:.2f}%")
-    print(f"  F1 Score  : {f1*100:.2f}%")
-    print(f"  ROC-AUC   : {auc*100:.2f}%")
+# 3. Fit and Export Scaler exclusively on feature_cols
+print("📏 Fitting StandardScaler on feature columns...")
+scaler = StandardScaler()
+X_scaled = pd.DataFrame(scaler.fit_transform(X), columns=feature_cols)
+joblib.dump(scaler, 'models/scaler.pkl')
 
-    return {
-        'accuracy': round(acc*100, 2),
-        'precision': round(prec*100, 2),
-        'recall': round(rec*100, 2),
-        'f1_score': round(f1*100, 2),
-        'roc_auc': round(auc*100, 2)
-    }
+# 4. Perform Stratified Train-Test Split (80/20)
+print("✂️ Splitting dataset into train and test sets...")
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42, stratify=y)
 
-rf_results  = evaluate_model("Random Forest", y_test, rf_pred, rf_prob)
-xgb_results = evaluate_model("XGBoost",       y_test, xgb_pred, xgb_prob)
+X_train.to_csv('outputs/X_train.csv', index=False)
+pd.DataFrame({'target': y_train}).to_csv('outputs/y_train.csv', index=False)
+X_test.to_csv('outputs/X_test.csv', index=False)
+pd.DataFrame({'target': y_test}).to_csv('outputs/y_test.csv', index=False)
 
-best_model_name = "Random Forest" if rf_results['f1_score'] >= xgb_results['f1_score'] else "XGBoost"
-print(f"\n🏆 Best Model (by F1 Score): {best_model_name}")
+# 5. Apply SMOTE
+print("⚖️ Applying SMOTE for class balancing...")
+smote = SMOTE(random_state=42)
+X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 
-results = {
-    'random_forest': rf_results,
-    'xgboost': xgb_results,
-    'best_model': best_model_name
-}
-with open('outputs/ml_results.json', 'w') as f:
-    json.dump(results, f, indent=2)
+# Helper Function for Confusion Matrix Plot
+def save_confusion_matrix(y_true, y_pred, model_name, filename):
+    plt.close('all')
+    fig, ax = plt.subplots(figsize=(6, 5))
+    cm = confusion_matrix(y_true, y_pred)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax,
+                xticklabels=['Healthy (0)', 'Risk (1)'],
+                yticklabels=['Healthy (0)', 'Risk (1)'])
+    plt.title(f'Confusion Matrix — {model_name}', fontsize=12, pad=12)
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.tight_layout()
+    plt.savefig(f'outputs/{filename}', dpi=150, bbox_inches='tight')
+    plt.close('all')
 
-# 5. Save Models
-print("\n[5/6] Saving trained model artifacts...")
-os.makedirs('models', exist_ok=True)
-joblib.dump(rf_model,  'models/random_forest.pkl')
+# 6. Train & Evaluate Random Forest
+print("\n🌲 Training Random Forest Classifier...")
+rf_model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+rf_model.fit(X_train_res, y_train_res)
+y_pred_rf = rf_model.predict(X_test)
+y_prob_rf = rf_model.predict_proba(X_test)[:, 1]
+
+rf_acc = accuracy_score(y_test, y_pred_rf)
+rf_precision = precision_score(y_test, y_pred_rf)
+rf_recall = recall_score(y_test, y_pred_rf)
+rf_f1 = f1_score(y_test, y_pred_rf)
+rf_roc_auc = roc_auc_score(y_test, y_prob_rf)
+
+joblib.dump(rf_model, 'models/random_forest.pkl')
+save_confusion_matrix(y_test, y_pred_rf, 'Random Forest', 'plot_cm_rf.png')
+
+# 7. Train & Evaluate XGBoost
+print("\n⚡ Training XGBoost Classifier...")
+xgb_model = XGBClassifier(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42, eval_metric='logloss')
+xgb_model.fit(X_train_res, y_train_res)
+y_pred_xgb = xgb_model.predict(X_test)
+y_prob_xgb = xgb_model.predict_proba(X_test)[:, 1]
+
+xgb_acc = accuracy_score(y_test, y_pred_xgb)
+xgb_precision = precision_score(y_test, y_pred_xgb)
+xgb_recall = recall_score(y_test, y_pred_xgb)
+xgb_f1 = f1_score(y_test, y_pred_xgb)
+xgb_roc_auc = roc_auc_score(y_test, y_prob_xgb)
+
 joblib.dump(xgb_model, 'models/xgboost_model.pkl')
-print("✅ Models saved to models/")
+save_confusion_matrix(y_test, y_pred_xgb, 'XGBoost', 'plot_cm_xgb.png')
 
-# 6. SHAP Plots & Visualizations
-print("\n[6/6] Generating evaluation plots...")
+# 8. Print Combined Metrics Table
+metrics_df = pd.DataFrame({
+    'Model': ['Random Forest', 'XGBoost'],
+    'Accuracy': [rf_acc, xgb_acc],
+    'Precision': [rf_precision, xgb_precision],
+    'Recall': [rf_recall, xgb_recall],
+    'F1-Score': [rf_f1, xgb_f1],
+    'ROC-AUC Score': [rf_roc_auc, xgb_roc_auc]
+})
 
-# Plot Confusion Matrices
-plt.figure(figsize=(6, 5))
-sns.heatmap(confusion_matrix(y_test, rf_pred), annot=True, fmt='d', cmap='Blues',
-            xticklabels=['Healthy', 'Failure'], yticklabels=['Healthy', 'Failure'])
-plt.title('Random Forest — Confusion Matrix')
-plt.tight_layout()
-plt.savefig('outputs/plot_rf_confusion.png', dpi=150)
-plt.close()
+print("\n" + "="*70)
+print("📊 COMPREHENSIVE MODEL EVALUATION METRICS (CLASS 1 - FAILURE RISK)")
+print("="*70)
+print(metrics_df.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+print("="*70 + "\n")
 
-plt.figure(figsize=(6, 5))
-sns.heatmap(confusion_matrix(y_test, xgb_pred), annot=True, fmt='d', cmap='Oranges',
-            xticklabels=['Healthy', 'Failure'], yticklabels=['Healthy', 'Failure'])
-plt.title('XGBoost — Confusion Matrix')
-plt.tight_layout()
-plt.savefig('outputs/plot_xgb_confusion.png', dpi=150)
-plt.close()
+# Save metrics to JSON for optional dashboard display
+metrics_df.to_json('outputs/model_metrics.json', orient='records', indent=4)
 
-# SHAP Analysis
+# 9. Generate SHAP Plot — Random Forest
+print("🔍 Generating SHAP Plot for Random Forest...")
 try:
-    # 1. Use TreeExplainer
+    plt.close('all')
     explainer_rf = shap.TreeExplainer(rf_model)
-    shap_vals_rf = explainer_rf.shap_values(X_test[:200])
-    
-    # 2. Extract values for Class 1 (Failure Class)
-    if isinstance(shap_vals_rf, list):
-        shap_plot_vals = shap_vals_rf[1]
-    elif len(shap_vals_rf.shape) == 3:
-        shap_plot_vals = shap_vals_rf[:, :, 1]
-    else:
-        shap_plot_vals = shap_vals_rf
+    shap_explanation_rf = explainer_rf(X_test.iloc[:200])
+    shap_vals_rf = shap_explanation_rf.values[:, :, 1] if len(shap_explanation_rf.shape) == 3 else shap_explanation_rf.values
 
-    # 3. Clear existing figures & set proper layout
-    plt.clf()
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # 4. Generate standard SHAP summary dot plot
-    shap.summary_plot(
-        shap_plot_vals, 
-        X_test[:200], 
-        feature_names=feature_cols, 
-        show=False
-    )
-    
+    plt.figure(figsize=(10, 6))
+    shap.summary_plot(shap_vals_rf, X_test.iloc[:200], feature_names=feature_cols, plot_type="dot", show=False)
     plt.title('SHAP Feature Importance — Random Forest', fontsize=12, pad=15)
     plt.tight_layout()
     plt.savefig('outputs/plot_shap_rf.png', dpi=150, bbox_inches='tight')
     plt.close('all')
-    print("✅ Fixed SHAP summary plot saved to outputs/plot_shap_rf.png")
-
 except Exception as e:
-    print(f"❌ SHAP generation error: {e}")
+    print(f"❌ Random Forest SHAP Error: {e}")
 
-print("\n" + "=" * 60)
+# 10. Generate SHAP Plot — XGBoost
+print("🔍 Generating SHAP Plot for XGBoost...")
+try:
+    plt.close('all')
+    explainer_xgb = shap.TreeExplainer(xgb_model)
+    shap_explanation_xgb = explainer_xgb(X_test.iloc[:200])
+    shap_vals_xgb = shap_explanation_xgb.values[:, :, 1] if len(shap_explanation_xgb.shape) == 3 else shap_explanation_xgb.values
+
+    plt.figure(figsize=(10, 6))
+    shap.summary_plot(shap_vals_xgb, X_test.iloc[:200], feature_names=feature_cols, plot_type="dot", show=False)
+    plt.title('SHAP Feature Importance — XGBoost', fontsize=12, pad=15)
+    plt.tight_layout()
+    plt.savefig('outputs/plot_shap_xgb.png', dpi=150, bbox_inches='tight')
+    plt.close('all')
+except Exception as e:
+    print(f"❌ XGBoost SHAP Error: {e}")
+
+print("\n🚀 Execution complete! All metrics, models, scaler, and SHAP plots are updated.")
