@@ -1,8 +1,7 @@
 """
-MODULE 3 — MACHINE LEARNING CLASSIFICATION, SCALER, METRICS & EXPLAINABILITY
-=============================================================================
-Train models, fit scaler on feature columns, print comprehensive metrics 
-(Accuracy, Precision, Recall, F1-Score, ROC-AUC), and generate synchronized artifacts.
+MODULE 3 — DEEP HYPERPARAMETER TUNING & MODEL EXPLAINABILITY
+============================================================
+Exhaustive RandomizedSearchCV (50 iterations x 5 folds) for RF and XGBoost.
 """
 
 import os
@@ -14,7 +13,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
@@ -55,13 +54,13 @@ else:
 
 X = df[feature_cols]
 
-# 3. Fit and Export Scaler exclusively on feature_cols
+# 3. Fit and Export Scaler
 print("📏 Fitting StandardScaler on feature columns...")
 scaler = StandardScaler()
 X_scaled = pd.DataFrame(scaler.fit_transform(X), columns=feature_cols)
 joblib.dump(scaler, 'models/scaler.pkl')
 
-# 4. Perform Stratified Train-Test Split (80/20)
+# 4. Stratified Train-Test Split (80/20)
 print("✂️ Splitting dataset into train and test sets...")
 X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42, stratify=y)
 
@@ -90,10 +89,31 @@ def save_confusion_matrix(y_true, y_pred, model_name, filename):
     plt.savefig(f'outputs/{filename}', dpi=150, bbox_inches='tight')
     plt.close('all')
 
-# 6. Train & Evaluate Random Forest
-print("\n🌲 Training Random Forest Classifier...")
-rf_model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
-rf_model.fit(X_train_res, y_train_res)
+# 6. Deep RandomizedSearchCV — Random Forest
+print("\n🌲 Running Deep RandomizedSearchCV for Random Forest (50 iterations x 5 CV folds)...")
+rf_param_grid = {
+    'n_estimators': [100, 150, 200, 300],
+    'max_depth': [8, 10, 12, 15, 20, None],
+    'min_samples_split': [2, 5, 10, 15],
+    'min_samples_leaf': [1, 2, 4, 8],
+    'max_features': ['sqrt', 'log2', None],
+    'bootstrap': [True, False]
+}
+
+rf_search = RandomizedSearchCV(
+    estimator=RandomForestClassifier(random_state=42),
+    param_distributions=rf_param_grid,
+    n_iter=50,
+    cv=5,
+    scoring='f1',
+    random_state=42,
+    n_jobs=-1,
+    verbose=1
+)
+rf_search.fit(X_train_res, y_train_res)
+rf_model = rf_search.best_estimator_
+print(f"\n🎯 Best RF Params: {rf_search.best_params_}")
+
 y_pred_rf = rf_model.predict(X_test)
 y_prob_rf = rf_model.predict_proba(X_test)[:, 1]
 
@@ -106,10 +126,32 @@ rf_roc_auc = roc_auc_score(y_test, y_prob_rf)
 joblib.dump(rf_model, 'models/random_forest.pkl')
 save_confusion_matrix(y_test, y_pred_rf, 'Random Forest', 'plot_cm_rf.png')
 
-# 7. Train & Evaluate XGBoost
-print("\n⚡ Training XGBoost Classifier...")
-xgb_model = XGBClassifier(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42, eval_metric='logloss')
-xgb_model.fit(X_train_res, y_train_res)
+# 7. Deep RandomizedSearchCV — XGBoost
+print("\n⚡ Running Deep RandomizedSearchCV for XGBoost (50 iterations x 5 CV folds)...")
+xgb_param_grid = {
+    'n_estimators': [100, 150, 200, 300],
+    'max_depth': [3, 4, 6, 8, 10],
+    'learning_rate': [0.01, 0.03, 0.05, 0.1, 0.2],
+    'subsample': [0.6, 0.7, 0.8, 0.9, 1.0],
+    'colsample_bytree': [0.6, 0.7, 0.8, 0.9, 1.0],
+    'gamma': [0, 0.1, 0.2, 0.3],
+    'min_child_weight': [1, 3, 5]
+}
+
+xgb_search = RandomizedSearchCV(
+    estimator=XGBClassifier(random_state=42, eval_metric='logloss'),
+    param_distributions=xgb_param_grid,
+    n_iter=50,
+    cv=5,
+    scoring='f1',
+    random_state=42,
+    n_jobs=-1,
+    verbose=1
+)
+xgb_search.fit(X_train_res, y_train_res)
+xgb_model = xgb_search.best_estimator_
+print(f"\n🎯 Best XGB Params: {xgb_search.best_params_}")
+
 y_pred_xgb = xgb_model.predict(X_test)
 y_prob_xgb = xgb_model.predict_proba(X_test)[:, 1]
 
@@ -124,7 +166,7 @@ save_confusion_matrix(y_test, y_pred_xgb, 'XGBoost', 'plot_cm_xgb.png')
 
 # 8. Print Combined Metrics Table
 metrics_df = pd.DataFrame({
-    'Model': ['Random Forest', 'XGBoost'],
+    'Model': ['Random Forest (Deep Tuned)', 'XGBoost (Deep Tuned)'],
     'Accuracy': [rf_acc, xgb_acc],
     'Precision': [rf_precision, xgb_precision],
     'Recall': [rf_recall, xgb_recall],
@@ -132,13 +174,12 @@ metrics_df = pd.DataFrame({
     'ROC-AUC Score': [rf_roc_auc, xgb_roc_auc]
 })
 
-print("\n" + "="*70)
-print("📊 COMPREHENSIVE MODEL EVALUATION METRICS (CLASS 1 - FAILURE RISK)")
-print("="*70)
+print("\n" + "="*75)
+print("📊 DEEP TUNED MODEL EVALUATION METRICS (CLASS 1 - FAILURE RISK)")
+print("="*75)
 print(metrics_df.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
-print("="*70 + "\n")
+print("="*75 + "\n")
 
-# Save metrics to JSON for optional dashboard display
 metrics_df.to_json('outputs/model_metrics.json', orient='records', indent=4)
 
 # 9. Generate SHAP Plot — Random Forest
@@ -175,4 +216,4 @@ try:
 except Exception as e:
     print(f"❌ XGBoost SHAP Error: {e}")
 
-print("\n🚀 Execution complete! All metrics, models, scaler, and SHAP plots are updated.")
+print("\n🚀 Execution complete! Highly optimized models and metrics saved.")
